@@ -51,7 +51,10 @@ unrelated memory. The IPU is left with data in its output FIFO (`IPU_CTRL.OFC !=
   (OFC = 8) while spinning in `_ipu_suspend()`, `D3_QWC = 0`. An all-intra stream shows the same from frame 2/3.
 * After the fix: 60/60 frames decoded for all-I 640x480, I/P 640x480 and I/P 320x240; a 40 s 640x480 29.97 fps stream and a
   30 s 640x368 24 fps stream (3.5 Mbps) play to the end with correct picture. Decode ~8 ms/frame in PCSX2.
-* Not yet tested on real hardware (the fix only changes the order of two register writes to match the first chunk).
+* Real hardware (SCPH-39004, tools/mpegtest in the PS2GameEngine repository), 2026-11-01, with the fix: synthetic 640x480 (1200 MBs) and 352x288 (396 MBs)
+  I/P streams (ffmpeg testsrc2, 60 frames) both decode all the way through; per-frame average colours match a reference decode within 11/255
+  (colour range conversion) for both sizes; 640x480 decode is about 8.3 ms/frame average, 17 ms max. Both streams deliver 59 of 60 pictures (the last one is not returned, also for the control).
+  The same test with the unpatched library: TODO (tools/mpegtest/mpegtest_orig.elf).
 
 ## Side note (documentation, optional)
 
