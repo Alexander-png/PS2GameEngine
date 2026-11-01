@@ -1,0 +1,53 @@
+# --- games and anything derived from them (never commit) ---
+/games/
+/scratch/
+*.gmpk
+*.GMP
+*.gmr
+*.vas
+*.vag
+*.bnk
+*.gsassets
+*.m2v
+*.vinfo
+data.win
+/converter/out/
+# --- build outputs ---
+*.o
+*.a
+*.elf
+*.ELF
+*.iso
+*.irx
+*.map
+build/
+build-*/
+**/obj/
+**/ee_obj/
+**/iop_obj/
+*.log
+# generated sources (embedded IRX / payloads)
+tools/**/*_irx.c
+tools/**/*_bin.c
+# vendored SDK is fetched by sdk/setup.sh
+/sdk/src/
+/sdk/ps2sdk/
+# tooling / local state
+__pycache__/
+*.pyc
+.screenshots/
+.serena/cache/
+.serena/project.local.yml
+*.swp
+.DS_Store
+# host test binaries
+tools/gmltest/gmltest
+tools/gmltest/build*/
+gmqoi
+vagenc
+build_*/
+
+# derived from game audio
+tools/audiotest/*.bin
+tools/gsverify/expected_*.png
+tools/gsverify/verify_data.h

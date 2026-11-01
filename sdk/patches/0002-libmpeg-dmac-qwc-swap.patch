@@ -1,0 +1,15 @@
+--- a/ee/mpeg/src/libmpeg_core.c	2026-11-01 13:41:48.173125480 +0000
++++ b/ee/mpeg/src/libmpeg_core.c	2026-10-17 17:19:32.468433788 +0000
+@@ -262,8 +262,10 @@
+     cp->source += mbc * sizeof(_MPEGMacroBlock8);
+     cp->dest += mbc * RGBA32_BLOCK_SIZE;
+     cp->blocks    = cp->blocks - mbc;
+-    *R_EE_D3_QWC  = (mbc * sizeof(_MPEGMacroBlock8)) >> 4;
+-    *R_EE_D4_QWC  = (mbc * RGBA32_BLOCK_SIZE) >> 4;
++    /* PS2GameEngine FIX: ch3 (fromIPU) receives RGBA32 and ch4 (toIPU) sends macroblocks. Upstream ps2sdk has these two
++       swapped in this handler, which corrupts every picture with more than 1023 macroblocks (e.g. 640x480). */
++    *R_EE_D3_QWC  = (mbc * RGBA32_BLOCK_SIZE) >> 4;
++    *R_EE_D4_QWC  = (mbc * sizeof(_MPEGMacroBlock8)) >> 4;
+     *R_EE_D4_CHCR = 0x101;
+     *R_EE_IPU_CMD = IPU_COMMAND_CSC | mbc;
+     *R_EE_D3_CHCR = 0x100;
