@@ -51,10 +51,16 @@ unrelated memory. The IPU is left with data in its output FIFO (`IPU_CTRL.OFC !=
   (OFC = 8) while spinning in `_ipu_suspend()`, `D3_QWC = 0`. An all-intra stream shows the same from frame 2/3.
 * After the fix: 60/60 frames decoded for all-I 640x480, I/P 640x480 and I/P 320x240; a 40 s 640x480 29.97 fps stream and a
   30 s 640x368 24 fps stream (3.5 Mbps) play to the end with correct picture. Decode ~8 ms/frame in PCSX2.
-* Real hardware (SCPH-39004, tools/mpegtest in the PS2GameEngine repository), 2026-11-01, with the fix: synthetic 640x480 (1200 MBs) and 352x288 (396 MBs)
-  I/P streams (ffmpeg testsrc2, 60 frames) both decode all the way through; per-frame average colours match a reference decode within 11/255
-  (colour range conversion) for both sizes; 640x480 decode is about 8.3 ms/frame average, 17 ms max. Both streams deliver 59 of 60 pictures (the last one is not returned, also for the control).
-  The same test with the unpatched library: TODO (tools/mpegtest/mpegtest_orig.elf).
+* Real hardware (SCPH-39004, FAT), 2026-11-01. Test program: `tools/mpegtest` in https://github.com/Alexander-png/PS2GameEngine
+  (synthetic ffmpeg `testsrc2` MPEG-2 streams, I/P only, 60 frames, decoded from memory with `MPEG_Initialize/MPEG_Picture`, RGBA32 output, shown on the GS).
+  | libmpeg | 352x288 (396 MBs) | 640x480 (1200 MBs) |
+  |---|---|---|
+  | upstream 39a89923 (unpatched) | OK, 59 pictures, ~3.0 ms/picture | **hangs in the first `MPEG_Picture()`**, never returns (console has to be reset) |
+  | with the fix above | OK, 59 pictures, ~3.0 ms/picture | OK, 59 pictures, ~8.3 ms/picture (max 17 ms) |
+
+  The result is the same with and without HDD log writes during decoding. Per-picture average colours of the fixed 640x480 decode match a reference
+  ffmpeg decode within 11/255 (same offset as the control stream: colour range conversion), so the pictures are correct, not only complete.
+  Note: both streams deliver 59 of their 60 pictures also with the fix (the last picture is not returned), independent of this bug.
 
 ## Side note (documentation, optional)
 

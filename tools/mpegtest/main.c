@@ -31,6 +31,12 @@ extern unsigned int size_s352_m2v, size_s640_m2v;
 #define SH 480
 #define EXPECT_FRAMES 59 /* libmpeg hands out 59 of the 60 pictures of each test stream, also for the 352x288 control (the last picture is not delivered) */
 
+/* -DNOSAVE: no HDD writes while decoding (log lines stay in RAM and are written once at the end), to rule out the log writes disturbing the test */
+#ifdef NOSAVE
+#define SAVE_MID() ((void)0)
+#else
+#define SAVE_MID() ge_log_save()
+#endif
 static const unsigned char *src; static unsigned src_len, src_pos;
 static volatile int eof_logged;
 static volatile unsigned progress; /* bumped on every decoded picture and every data callback */
@@ -39,7 +45,7 @@ static int data_cb(void *u)
 {
     (void)u;
     progress++;
-    if (src_pos >= src_len) { if (!eof_logged) { eof_logged = 1; ge_log("data_cb: end of stream reached (%u bytes sent)", src_pos); ge_log_save(); } return 0; }
+    if (src_pos >= src_len) { if (!eof_logged) { eof_logged = 1; ge_log("data_cb: end of stream reached (%u bytes sent)", src_pos); SAVE_MID(); } return 0; }
     unsigned n = src_len - src_pos; if (n > 2048) n = 2048;
     dma_channel_send_normal(DMA_CHANNEL_toIPU, (void *)(src + src_pos), n >> 4, 0, 0);
     src_pos += n;
@@ -113,7 +119,7 @@ static void watchdog(void *a)
         if (progress != last) { last = progress; idle = 0; continue; }
         if (wd_stream >= 0 && ++idle == 16) { /* 8 s without progress */
             ge_log("HANG: stream %d made no progress for 8 s (IPU_CTRL=0x%08x)", wd_stream, *(volatile unsigned *)0x10002010);
-            ge_log_save();
+            SAVE_MID();
         }
     }
 }
@@ -130,7 +136,7 @@ static int run(int id, const char *name, const unsigned char *data, unsigned len
     SyncDCache(copy, copy + total);
     src = copy; src_len = total; src_pos = 0; eof_logged = 0;
     pic = NULL; wd_stream = id; progress++;
-    ge_log("stream %s: %u bytes, start", name, len); ge_log_save();
+    ge_log("stream %s: %u bytes, start", name, len); SAVE_MID();
     MPEG_Initialize(data_cb, NULL, init_cb, NULL, &cur_pts);
     int n = 0; unsigned dec_sum = 0, dec_max = 0;
     for (;;) {
@@ -153,15 +159,15 @@ static int run(int id, const char *name, const unsigned char *data, unsigned len
         dma_channel_send_normal(DMA_CHANNEL_GIF, drawp->data, drawp->qwc, 0, 0); dma_channel_wait(DMA_CHANNEL_GIF, 0);
         graph_wait_vsync();
         n++;
-        if (n >= 40 && (n % 4) == 0) ge_log_save(); /* keep the log current in case the next picture hangs */
+        if (n >= 40 && (n % 4) == 0) SAVE_MID(); /* keep the log current in case the next picture hangs */
         if (n > 4 * EXPECT_FRAMES) break; /* garbage pictures without consuming input */
     }
-    ge_log("stream %s: MPEG_Picture returned 0 after %d frames", name, n); ge_log_save();
+    ge_log("stream %s: MPEG_Picture returned 0 after %d frames", name, n); SAVE_MID();
     MPEG_Destroy();
     wd_stream = -1;
     int ok = n == EXPECT_FRAMES;
     ge_log("RESULT %s: %d frames decoded (expected %d), decode avg %u us max %u us => %s", name, n, EXPECT_FRAMES, n ? dec_sum / n : 0, dec_max, ok ? "PASS" : "FAIL");
-    ge_log_save();
+    SAVE_MID();
     free(pic); pic = NULL; packet_free(xfer); packet_free(drawp); free(copy);
     return ok;
 }
@@ -170,6 +176,9 @@ int main(void)
 {
     int io_r = ge_io_init("hdd0:+DEVGAME", "/current");
     ge_log_init("mpegtest", 256 * 1024);
+#ifdef NOSAVE
+    ge_log("(NOSAVE build: log written only at the end)");
+#endif
 #ifdef ORIG
     ge_log("mpegtest, UNPATCHED upstream libmpeg; storage init %d (%s)", io_r, ge_io_source());
 #else
