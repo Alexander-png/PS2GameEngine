@@ -1,5 +1,7 @@
 # Draft: ps2sdk issue / PR — libmpeg: D3/D4 QWC swapped in `_mpeg_dmac_handler`, breaks pictures with > 1023 macroblocks
 
+Status: submitted as https://github.com/ps2dev/ps2sdk/pull/944 (2026-11-01).
+
 Target repo: ps2dev/ps2sdk, file `ee/mpeg/src/libmpeg_core.c` (checked against master at 39a89923, 2026-08-28).
 
 ## Summary
