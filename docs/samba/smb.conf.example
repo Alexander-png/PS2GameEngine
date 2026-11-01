@@ -1,0 +1,20 @@
+# Sections to add to /etc/samba/smb.conf for the PS2 (SMB1 + NTLMv1, see docs/smb-share.md). Trusted LAN only.
+[global]
+    workgroup = WORKGROUP
+    server role = standalone server
+    security = user
+    server min protocol = NT1
+    server max protocol = NT1
+    server signing = disabled
+    smb encrypt = disabled
+    ntlm auth = ntlmv1-permitted
+    log file = /var/log/samba/%m.log
+    log level = 1
+
+[ps2engine]
+    comment = PS2GameEngine builds and logs
+    path = /srv/ps2engine
+    browseable = yes
+    read only = no
+    guest ok = no
+    valid users = ps2deploy
