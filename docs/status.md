@@ -16,4 +16,3 @@
 - Speed: `obj_snowfloor` script; generally any room under 30 fps (check the `draw-prof` lines).
 - Tooling: header dependency tracking in `tools/gmrun/Makefile`; log run-number collisions; HDD free-space query; PS2Deployer into this repository.
 - Retest by the user: Snowdin Town background and the cleaned release build on the console.
-- Repository: choose a LICENSE.

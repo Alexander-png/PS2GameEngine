@@ -47,9 +47,12 @@ tools/deploy/deploy_gmrun.sh converter/out/undertale.gmpk converter/out/gen_unde
 - [docs/status.md](docs/status.md) state of the project and backlog
 - [AGENTS.md](AGENTS.md) instructions for AI agents (and a good contributor checklist too)
 
-## Legal
+## License
 
-The engine is written from scratch. Butterscotch (AGPL) and UndertaleModTool (GPL) were used as references to
-understand the file format only; **no code was copied from them**, please keep it that way. `sdk/` fetches
-ps2dev/ps2sdk (AFL-3.0) at build time. UNDERTALE, Undertale Yellow and DELTARUNE belong to their authors; this project
-ships none of their content. A LICENSE for this repository has not been chosen yet (see AGENTS.md).
+PS2GameEngine is free software under the **GNU Affero General Public License v3.0** (see [LICENSE](LICENSE)).
+Contributions are accepted under the same license.
+
+Reference code: Butterscotch (AGPL) and UndertaleModTool (GPL) were consulted only to understand file formats;
+**no code was copied from them**, please keep it that way. `sdk/` fetches ps2dev/ps2sdk (AFL-3.0) at build time and
+keeps its own license. UNDERTALE, Undertale Yellow and DELTARUNE belong to their authors; this project ships none of
+their content.

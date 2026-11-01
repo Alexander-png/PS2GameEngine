@@ -43,7 +43,7 @@ Read README.md and docs/status.md first. This file is the working agreement; the
 
 - Small logical commits with an imperative subject and a body that says why. Run no destructive git commands (reset --hard, force push) unless the owner asks.
 - Agent-authored commits end with the trailer lines the harness provides (Co-Authored-By and session link).
-- Do not push or create remotes unless asked. No LICENSE has been chosen yet; do not add one without the owner's decision.
+- Do not push or create remotes unless asked. The project is AGPL-3.0 (LICENSE). Do not import code under an incompatible license.
 
 ## Where things are
 
