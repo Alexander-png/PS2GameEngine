@@ -648,6 +648,8 @@ static void camera_follow(void)
         if (t) {
             gm_real_t l, tp, r, b, hb = gview("view_hborder", v), vb = gview("view_vborder", v), hs = gview("view_hspeed", v), vs = gview("view_vspeed", v);
             if (!gm_inst_bbox(t, &l, &tp, &r, &b)) { l = r = t->x; tp = b = t->y; }
+            if (hb * 2 > vw) hb = vw / 2;                 /* a border wider than half the view keeps the object centred (zoom cutscenes) */
+            if (vb * 2 > vh) vb = vh / 2;
             gm_real_t nx = vx, ny = vy;
             if (r + hb > vx + vw) nx = r + hb - vw;
             if (l - hb < nx) nx = l - hb;
