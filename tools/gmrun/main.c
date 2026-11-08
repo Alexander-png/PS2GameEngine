@@ -174,6 +174,22 @@ static void log_area_check(int room)
 /* battle state for the 5 s log line: lets a log show where a fight sits (the globals the battle state machine uses, the monster's own state and alarms, every instance) */
 static double gnum(const char *n) { int v = gm_vid(n); return v < 0 ? -999 : (double)gm_to_real(gm_get(gm_global_inst, v)); }
 static double inum(gm_inst *i, const char *n) { int v = gm_vid(n); return v < 0 || !i ? -999 : (double)gm_to_real(gm_get(i, v)); }
+/* trace live spears / bullets of the Undyne fight (every 6 steps, at most 120 lines per room visit): where they are, how visible they are */
+static void spear_trace(void)
+{
+    static const char *const NM[] = {"obj_blockbullet", "obj_blockbullet2", "obj_risespearbullet", "obj_spearbullet_follow", "obj_spearbullet"};
+    static unsigned n = 0, lines = 0; if ((++n % 6) || lines > 120) return;
+    for (int k = 0; k < 5; k++) {
+        int o = gm_find_object(NM[k]); if (o < 0) continue;
+        int c = gm_instance_count(o);
+        for (int j = 0; j < c && j < 3; j++) {
+            gm_inst *i = gm_instance_nth(o, j); if (!i) continue;
+            ge_log("  spear %s #%d/%d pos %.0f,%.0f alpha %.2f img %g vis %d hs %.2f vs %.2f part %g site %g active %g", NM[k], j, c, (double)i->x, (double)i->y,
+                   inum(i, "image_alpha"), inum(i, "image_index"), (int)inum(i, "visible"), (double)i->hspeed, (double)i->vspeed, inum(i, "part"), inum(i, "site"), inum(i, "active"));
+            lines++;
+        }
+    }
+}
 static void log_battle_state(void)
 {
     ge_log("  battle: mnfight %g myfight %g turntimer %g bmenuno %g hp %g", gnum("mnfight"), gnum("myfight"), gnum("turntimer"), gnum("bmenuno"), gnum("hp"));
@@ -264,6 +280,7 @@ int main(void)
         if ((pad_now & (GE_BTN_SELECT | GE_BTN_START)) == (GE_BTN_SELECT | GE_BTN_START)) break;
         unsigned c0 = cyc();
         gm_step();
+        if (gm_room_cur >= 0 && !strcmp(gm_rooms[gm_room_cur].name, "room_battle")) spear_trace();
         unsigned c1 = cyc();
         gs_cyc = 0;
         gm_draw();
