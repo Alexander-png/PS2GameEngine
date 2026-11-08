@@ -180,9 +180,16 @@ static void log_battle_state(void)
     gm_inst *m = gm_obj1(gm_find_object("obj_maddummy"));
     if (m) ge_log("  maddummy: con %g con2 %g hp %g hurtsies %g talked %g attacked %g next %g speed %g pos %g,%g | alarms %d %d %d %d %d %d %d %d %d %d %d %d", inum(m, "con"), inum(m, "con2"), inum(m, "hp"), inum(m, "hurtsies"),
                   inum(m, "talked"), inum(m, "attacked"), inum(m, "next"), inum(m, "speed"), (double)m->x, (double)m->y, m->alarm[0], m->alarm[1], m->alarm[2], m->alarm[3], m->alarm[4], m->alarm[5], m->alarm[6], m->alarm[7], m->alarm[8], m->alarm[9], m->alarm[10], m->alarm[11]);
-    char buf[300]; int n = 0; buf[0] = 0;
-    for (int k = 0, c = gm_instance_count(-1); k < c && n < 270; k++) { gm_inst *i = gm_instance_nth(-1, k); n += snprintf(buf + n, sizeof buf - n, "%s ", gm_objs[i->obj].name); }
-    ge_log("  instances: %s", buf);
+    {   /* per-object instance counts (compact) */
+        static unsigned short cnt[4096]; char buf[400]; int n = 0, total = gm_instance_count(-1);
+        if (gm_nobjs <= 4096) {
+            memset(cnt, 0, sizeof cnt);
+            for (int k = 0; k < total; k++) { gm_inst *i = gm_instance_nth(-1, k); if (i->obj >= 0 && i->obj < 4096) cnt[i->obj]++; }
+            buf[0] = 0;
+            for (int o = 0; o < gm_nobjs && n < 370; o++) if (cnt[o]) n += snprintf(buf + n, sizeof buf - n, "%s=%d ", gm_objs[o].name, cnt[o]);
+            ge_log("  instances(%d): %s", total, buf);
+        }
+    }
 }
 static int heap_used(void) { struct mallinfo mi = mallinfo(); return mi.uordblks; }
 static void log_room_summary(const char *what, int r, const prof_t *p, unsigned ms, const unsigned *u0)
@@ -273,6 +280,10 @@ int main(void)
         if (f.step + f.draw > step_ms * 1000u * 3 / 2) {          /* slow frame: more than 1.5 game steps */
             slow++;
             if (slow <= 40) ge_log("slow frame %u: room %s step %u us draw %u us (gs wait %u us) inst %d", frames, gm_room_cur >= 0 ? gm_rooms[gm_room_cur].name : "?", f.step, f.draw, f.gs, f.inst);
+        }
+        {   /* log view-size changes (zoom cutscenes) */
+            extern int gm_camera_view(int *w, int *h); static int lw = -1, lh = -1; int vw = 0, vh = 0;
+            if (gm_camera_view(&vw, &vh) && (vw != lw || vh != lh)) { ge_log("view0 size %d x %d (room %s)", vw, vh, gm_room_cur >= 0 ? gm_rooms[gm_room_cur].name : "?"); lw = vw; lh = vh; }
         }
         if (gm_room_cur != cur_room) {                            /* room changed during this step: log the room we left and the cost of the switch */
             log_room_summary("left", cur_room, &room, ge_time_ms() - room_t0, rm_u);

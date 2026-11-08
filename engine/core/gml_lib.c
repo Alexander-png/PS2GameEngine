@@ -331,7 +331,9 @@ GMB(move_towards_point) { (void)other; gm_real_t dx = A_REAL(0) - self->x, dy = 
 GMB(move_snap) { (void)other; gm_real_t h = A_REAL(0), v = A_REAL(1); if (h > 0) self->x = floor(self->x / h + 0.5) * h; if (v > 0) self->y = floor(self->y / v + 0.5) * v; return GM_UNDEF_V; }
 GMB(path_start) { (void)other; (void)argc; gm_path_start(self, A_INT(0), A_REAL(1), A_INT(2), A_INT(3)); return GM_UNDEF_V; }
 GMB(path_end) { (void)other; (void)argc; (void)argv; gm_path_stop(self); return GM_UNDEF_V; }
-NOPF(path_dummy_) NOPF(sprite_delete) NOPF(sprite_replace) NOPF(sprite_create_from_surface)
+NOPF(path_dummy_) NOPF(sprite_delete) NOPF(sprite_replace)
+/* screen captures are not implemented: answer "no sprite" (-1) so nothing is drawn; undefined would read as sprite 0 (the title image) */
+GMB(sprite_create_from_surface) { (void)self; (void)other; (void)argc; (void)argv; return gm_real(-1); }
 GMB(background_add) { (void)self; (void)other; (void)argc; (void)argv; return gm_real(-1); }
 GMB(sprite_get_name) { (void)self; (void)other; (void)argc; (void)argv; return gm_str_make("", 0); }
 GMB(sprite_collision_mask) { (void)self; (void)other; (void)argc; (void)argv; return GM_UNDEF_V; }
