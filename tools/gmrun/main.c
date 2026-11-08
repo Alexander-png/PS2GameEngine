@@ -171,6 +171,19 @@ static void log_area_check(int room)
     if (a && strcmp(a, cur_area)) { cur_area = a; area_part = 1; ge_log_segment(a); }
     else if (ge_log_size() > 200 * 1024) { char t[40]; snprintf(t, sizeof t, "%s%d", cur_area, ++area_part); ge_log_segment(t); }
 }
+/* battle state for the 5 s log line: lets a log show where a fight sits (the globals the battle state machine uses, the monster's own state and alarms, every instance) */
+static double gnum(const char *n) { int v = gm_vid(n); return v < 0 ? -999 : (double)gm_to_real(gm_get(gm_global_inst, v)); }
+static double inum(gm_inst *i, const char *n) { int v = gm_vid(n); return v < 0 || !i ? -999 : (double)gm_to_real(gm_get(i, v)); }
+static void log_battle_state(void)
+{
+    ge_log("  battle: mnfight %g myfight %g turntimer %g bmenuno %g hp %g", gnum("mnfight"), gnum("myfight"), gnum("turntimer"), gnum("bmenuno"), gnum("hp"));
+    gm_inst *m = gm_obj1(gm_find_object("obj_maddummy"));
+    if (m) ge_log("  maddummy: con %g con2 %g hp %g hurtsies %g talked %g attacked %g next %g speed %g pos %g,%g | alarms %d %d %d %d %d %d %d %d %d %d %d %d", inum(m, "con"), inum(m, "con2"), inum(m, "hp"), inum(m, "hurtsies"),
+                  inum(m, "talked"), inum(m, "attacked"), inum(m, "next"), inum(m, "speed"), (double)m->x, (double)m->y, m->alarm[0], m->alarm[1], m->alarm[2], m->alarm[3], m->alarm[4], m->alarm[5], m->alarm[6], m->alarm[7], m->alarm[8], m->alarm[9], m->alarm[10], m->alarm[11]);
+    char buf[300]; int n = 0; buf[0] = 0;
+    for (int k = 0, c = gm_instance_count(-1); k < c && n < 270; k++) { gm_inst *i = gm_instance_nth(-1, k); n += snprintf(buf + n, sizeof buf - n, "%s ", gm_objs[i->obj].name); }
+    ge_log("  instances: %s", buf);
+}
 static int heap_used(void) { struct mallinfo mi = mallinfo(); return mi.uordblks; }
 static void log_room_summary(const char *what, int r, const prof_t *p, unsigned ms, const unsigned *u0)
 {
@@ -276,6 +289,7 @@ int main(void)
                    frames * 1000.0f / el, win.n, late, slow, gm_room_cur >= 0 ? gm_rooms[gm_room_cur].name : "?", gm_instance_count(-1), heap_used(),
                    win.n ? win.step_sum / win.n : 0, win.step_max, win.n ? win.draw_sum / win.n : 0, win.draw_max, win.n ? win.gs_sum / win.n : 0, win.gs_max);
             gm_prof_dump(prof_out);
+            if (gm_room_cur >= 0 && !strcmp(gm_rooms[gm_room_cur].name, "room_battle")) log_battle_state();
             unsigned st[4]; ge_gfx_stats(&st[0], &st[1], &st[2], &st[3]);
             ge_log("  textures: +%u uploads +%u evictions +%u KB +%u cache hits", st[0] - us_u[0], st[1] - us_u[1], (st[2] - us_u[2]) / 1024, st[3] - us_u[3]);
             memcpy(us_u, st, sizeof us_u);

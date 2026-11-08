@@ -26,14 +26,25 @@ static void trace_vars(void)
     for (int q = 0; q < ntr; q++) { int v = gm_vid(trv[q]); if (v < 0) continue; double x = gm_to_real(gm_get(gm_global_inst, v)); if (x != trlast[q]) { printf("  [f%llu] %s: %g -> %g\n", (unsigned long long)gm_frame, trv[q], trlast[q], x); trlast[q] = x; } }
 }
 static int pvk[8], npvk, pper = 20, hvk[8], nhvk;
+static int tapvk, tapph;   /* tap=<vk>: pressed (phase 1), held (2), released (3) over three steps */
+static int drawstep;       /* draw=1: also run the Draw events every step (UT counts turntimer down in obj_battlecontroller Draw) */
+static void gstep(void);
 static unsigned keys(int vk)
 {
+    if (tapvk && vk == tapvk) return tapph == 1 ? 3 : (tapph == 2 ? 1 : 4);
     for (int k = 0; k < nhvk; k++) if (hvk[k] == vk) return 1 | (gm_frame == 1 ? 2 : 0);
     for (int k = 0; k < npvk; k++) if (pvk[k] == vk) {
         int f = (int)(gm_frame % pper);
         return (f < 2 ? 1 : 0) | (f == 0 ? 2 : 0) | (f == 2 ? 4 : 0);
     }
     return 0;
+}
+static void gstep(void)
+{
+    gm_step();
+#ifdef GFX
+    if (drawstep) gm_draw();
+#endif
 }
 int main(int argc, char **argv)
 {
@@ -54,7 +65,8 @@ int main(int argc, char **argv)
     for (int k = 2; k < argc; k++) {
         if (!strncmp(argv[k], "room=", 5)) { gm_goto_room(atoi(argv[k] + 5)); continue; }
         if (!strncmp(argv[k], "roomname=", 9)) { for (int r = 0; r < gm_nrooms; r++) if (!strcmp(gm_rooms[r].name, argv[k] + 9)) gm_goto_room(r); continue; }
-        if (!strncmp(argv[k], "step=", 5)) { for (int q = atoi(argv[k] + 5); q > 0; q--) { gm_step(); trace_vars(); } continue; }
+        if (!strncmp(argv[k], "step=", 5)) { for (int q = atoi(argv[k] + 5); q > 0; q--) { gstep(); trace_vars(); } continue; }
+        if (!strncmp(argv[k], "tap=", 4)) { tapvk = atoi(argv[k] + 4); for (tapph = 1; tapph <= 3; tapph++) { gstep(); trace_vars(); } tapvk = tapph = 0; continue; }
         if (!strncmp(argv[k], "press=", 6)) { if (npvk < 8) pvk[npvk++] = atoi(argv[k] + 6); continue; }
         if (!strncmp(argv[k], "hold=", 5)) { if (nhvk < 8) hvk[nhvk++] = atoi(argv[k] + 5); continue; }
         if (!strncmp(argv[k], "tr=", 3)) { if (ntr < 4) trv[ntr++] = argv[k] + 3; continue; }
@@ -62,10 +74,14 @@ int main(int argc, char **argv)
         if (!strncmp(argv[k], "period=", 7)) { pper = atoi(argv[k] + 7); continue; }
 #ifdef GFX
         if (!strncmp(argv[k], "pack=", 5)) continue;
+        if (!strncmp(argv[k], "snap=", 5)) { gm_draw(); ge_gfx_host_dump(argv[k] + 5); continue; }   /* snap=<file.ppm>: draw and dump now (between step= commands) */
         if (!strncmp(argv[k], "shot=", 5) && nshot < 16) { shotf[nshot] = atoi(argv[k] + 5); const char *c = strchr(argv[k] + 5, ':'); shotp[nshot++] = c ? c + 1 : "shot.ppm"; continue; }
 #endif
         if (!strncmp(argv[k], "run=", 4)) { for (int q = 0; q < gm_nscripts; q++) if (gm_scripts[q].fn && !strcmp(gm_scripts[q].name, argv[k] + 4)) { int ot = gm_find_object("obj_time"); gm_inst *t = gm_obj1(ot); if (!t) t = gm_instance_create(0, 0, ot); gm_scripts[q].fn(t, t, 0, NULL); printf("ran %s\n", argv[k] + 4); } continue; }
         if (!strncmp(argv[k], "set=", 4)) { char nm[64]; double v; if (sscanf(argv[k] + 4, "%63[^:]:%lf", nm, &v) == 2) { int id = gm_vid(nm); if (id >= 0) gm_set(gm_global_inst, id, gm_real(v)); else printf("no var %s\n", nm); } continue; }
+        if (!strncmp(argv[k], "msgend=", 7)) { for (int q = 1; q <= atoi(argv[k] + 7); q++) gm_seta(gm_global_inst, gm_vid("msg"), gm_real(q), gm_const_str(7)); continue; }   /* msgend=<n>: global.msg[1..n] = "%%%" (what earlier rooms leave behind; the writer loops need a terminator) */
+        if (!strncmp(argv[k], "evu=", 4)) { char on[64]; int n; if (sscanf(argv[k] + 4, "%63[^:]:%d", on, &n) == 2) { gm_inst *m = gm_obj1(gm_find_object(on)); if (m) gm_run_event(m, EV_OTHER, EVO_USER0 + n); } continue; }   /* evu=<object>:<n>: run user event n on the first instance */
+        if (!strncmp(argv[k], "draw=", 5)) { drawstep = atoi(argv[k] + 5); continue; }
         if (!strncmp(argv[k], "tp=", 3)) { double tx, ty; if (sscanf(argv[k] + 3, "%lf:%lf", &tx, &ty) == 2) { gm_inst *m = gm_obj1(gm_find_object("obj_mainchara")); if (m) { m->x = tx; m->y = ty; } } continue; }
         if (!strncmp(argv[k], "mv=", 3)) { char on[64]; double tx, ty; if (sscanf(argv[k] + 3, "%63[^:]:%lf:%lf", on, &tx, &ty) == 3) { gm_inst *m = gm_obj1(gm_find_object(on)); if (m) { m->x = tx; m->y = ty; } } continue; }
         if (!strncmp(argv[k], "setv=", 5)) { char on[64], vn[64]; double v; if (sscanf(argv[k] + 5, "%63[^:]:%63[^:]:%lf", on, vn, &v) == 3) { gm_inst *m = gm_obj1(gm_find_object(on)); int id = gm_vid(vn); if (m && id >= 0) gm_set(m, id, gm_real(v)); } continue; }
