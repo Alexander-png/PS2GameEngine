@@ -220,7 +220,7 @@ gm_val gm_cmp_slow(int op, gm_val a, gm_val b)
     int c;
     if (a.t == GM_STR && b.t == GM_STR) c = strcmp(a.u.s->s, b.u.s->s);
     else if (a.t == GM_STR || b.t == GM_STR) c = (op == 3) ? 1 : (op == 4 ? 1 : 0);   /* string vs number: never equal */
-    else { gm_real_t x = gm_to_real(a), y = gm_to_real(b); c = x < y ? -1 : (x > y ? 1 : 0); }
+    else c = gm_rcmp(gm_to_real(a), gm_to_real(b));
     int r;
     switch (op) {
     case 1: r = c < 0; break;

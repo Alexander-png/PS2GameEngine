@@ -69,7 +69,10 @@ gm_val gm_neg(gm_val a);
 gm_val gm_lnot(gm_val a);
 gm_val gm_bnot(gm_val a);
 gm_val gm_cmp_slow(int op, gm_val a, gm_val b);
-#define GM_CMP_FAST(opc, c, a, b) (((a).t == GM_REAL && (b).t == GM_REAL) ? gm_real((a).u.r c (b).u.r) : gm_cmp_slow(opc, a, b))
+/* GameMaker compares reals with an epsilon (1e-5): a cutscene waiting for `image_index == 2` after ten additions of 0.2 depends on it. */
+#define GM_EPS ((gm_real_t)0.00001)
+static inline int gm_rcmp(gm_real_t x, gm_real_t y) { gm_real_t d = x - y; return d < -GM_EPS ? -1 : (d > GM_EPS ? 1 : 0); }
+#define GM_CMP_FAST(opc, c, a, b) (((a).t == GM_REAL && (b).t == GM_REAL) ? gm_real(gm_rcmp((a).u.r, (b).u.r) c 0) : gm_cmp_slow(opc, a, b))
 static inline gm_val gm_lt(gm_val a, gm_val b) { return GM_CMP_FAST(1, <, a, b); }
 static inline gm_val gm_le(gm_val a, gm_val b) { return GM_CMP_FAST(2, <=, a, b); }
 static inline gm_val gm_eq(gm_val a, gm_val b) { return GM_CMP_FAST(3, ==, a, b); }
