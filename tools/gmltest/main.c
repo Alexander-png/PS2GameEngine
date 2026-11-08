@@ -19,6 +19,7 @@ static const char *dumpobj, *gvars[16]; static int ngv;
 static const char *trv[4]; static int ntr; static double trlast[4];
 static void trace_vars(void)
 {
+    if (getenv("GT_SEEN")) { static char seen[4096]; for (int k = 0, n = gm_instance_count(-1); k < n; k++) { gm_inst *i = gm_instance_nth(-1, k); if (i->obj < 4096 && !seen[i->obj]) { seen[i->obj] = 1; printf("  [f%llu] first %s\n", (unsigned long long)gm_frame, gm_objs[i->obj].name); } } }   /* GT_SEEN=1: print each object the first time an instance of it exists */
     if (getenv("GT_CNT") && gm_frame % 10 == 0) printf("  [f%llu] count(obj %d)=%d\n", (unsigned long long)gm_frame, atoi(getenv("GT_CNT")), gm_instance_count(atoi(getenv("GT_CNT"))));
     static double tol = -12345; const char *te = getenv("GT_TO");     /* GT_TO=<object>:<var> traces an instance variable */
     if (te) { char on[64], vn[64]; if (sscanf(te, "%63[^:]:%63s", on, vn) == 2) { gm_inst *o = gm_obj1(gm_find_object(on)); int v = gm_vid(vn);
