@@ -198,6 +198,11 @@ class Emit:
 
     def store_stmt(self, o, i, val):
         name, it = o["name"], o["it"]
+        if not o["arr"] and not o["stack_inst"] and not (it == -7 or i.op == 0xC1):
+            m = ARG_RE.match(name)
+            if m and it in (-15, -1, -6) and int(m.group(1)) < 16:   # GML scripts may assign to their own arguments
+                n = int(m.group(1)); self.arg_store = True
+                return f"ARGS_[{n}] = gm_keep({val}); if (argc < {n + 1}) argc = {n + 1};"
         if not o["arr"] and not o["stack_inst"] and (it == -7 or i.op == 0xC1):
             return f"L[{self.local(name)}] = gm_keep({val});"
         if o["arr"]:
@@ -384,6 +389,8 @@ class Emit:
             body += f"    gm_val L[{len(self.locals)}]; for (int k_ = 0; k_ < {len(self.locals)}; k_++) L[k_] = GM_UNDEF_V;\n"
         if self.maxenv > 1:
             body += f"    gm_with_t W[{self.maxenv}];\n"
+        if getattr(self, "arg_store", False):
+            body += "    gm_val ARGS_[16]; for (int k_ = 0; k_ < 16; k_++) ARGS_[k_] = k_ < argc ? argv[k_] : GM_UNDEF_V; if (argc > 16) argc = 16; argv = ARGS_;\n"
         hdr = f"gm_val gml_{mangle(self.name)}(gm_inst *self, gm_inst *other, int argc, const gm_val *argv)\n{{\n"
         return hdr + body + "\n".join(self.lines) + "\n}\n"
 
