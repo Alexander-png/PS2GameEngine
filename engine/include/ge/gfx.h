@@ -23,6 +23,7 @@ typedef struct {
 typedef int ge_tex_t;     /* handle, -1 = invalid */
 
 int      ge_gfx_init(int screen_w, int screen_h);                 /* 0 on success */
+void     ge_gfx_set_tilt(float degrees);                          /* rotate everything drawn about the view centre (GameMaker view_angle, counter-clockwise) */
 void     ge_gfx_set_view(int view_w, int view_h);                 /* game view size in game px; scale = screen_w / view_w */
 void     ge_gfx_get_view(int *view_w, int *view_h);
 ge_tex_t ge_gfx_tex_create(const ge_texdesc_t *d);

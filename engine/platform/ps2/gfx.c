@@ -151,6 +151,14 @@ int ge_gfx_init(int w, int h)
 }
 
 void ge_gfx_set_view(int vw, int vh) { if (vw > 0) { VWc = vw; VHc = vh; scale = (float)SW / vw; } }
+static float tilt, tilt_c = 1, tilt_s = 0;
+void ge_gfx_set_tilt(float deg) { tilt = deg; float a = deg * 0.017453292519943295f; tilt_c = cosf(a); tilt_s = sinf(a); }
+/* rotate a view-space point about the view centre (same orientation as the sprite rotation below) */
+static void tilt_pt(float *x, float *y)
+{
+    float cx = VWc * 0.5f, cy = VHc * 0.5f, dx = *x - cx, dy = *y - cy;
+    *x = cx + dx * tilt_c + dy * tilt_s; *y = cy - dx * tilt_s + dy * tilt_c;
+}
 void ge_gfx_get_view(int *vw, int *vh) { *vw = VWc; *vh = VHc; }
 
 ge_tex_t ge_gfx_tex_create(const ge_texdesc_t *d)
@@ -199,6 +207,7 @@ void ge_gfx_draw_xf(ge_tex_t t, int sx, int sy, int w, int h, float ax, float ay
                     float scx, float scy, float rot, uint32_t color)
 {
     if (t < 0 || scx == 0 || scy == 0) return;
+    if (tilt != 0) { tilt_pt(&ax, &ay); rot += tilt; }
     float px[4], py[4];
     float sfx = 1, sfy = 1, cu0 = 0, cv0 = 0, cu1 = 1, cv1 = 1;
     int sprite = rot == 0 && scx > 0 && scy > 0;
@@ -289,7 +298,8 @@ void ge_gfx_flat(int fan, const float *x, const float *y, int n, uint32_t color)
     PACK_GIFTAG(q, GS_SET_RGBAQ(r, g, b, al, 0), GS_REG_RGBAQ); q++;
     PACK_GIFTAG(q, GS_SET_PRIM(fan ? PRIM_TRIANGLE_FAN : PRIM_TRIANGLE_STRIP, 0, 0, 0, 1, 0, 1, 0, 0), GS_REG_PRIM); q++;
     for (int i = 0; i < n; i++) {
-        PACK_GIFTAG(q, GS_SET_XYZ((int)((2048 + x[i] * scale) * 16), (int)((2048 + y[i] * scale) * 16), 0), GS_REG_XYZ2); q++;
+        float fx = x[i], fy = y[i]; if (tilt != 0) tilt_pt(&fx, &fy);
+        PACK_GIFTAG(q, GS_SET_XYZ((int)((2048 + fx * scale) * 16), (int)((2048 + fy * scale) * 16), 0), GS_REG_XYZ2); q++;
     }
 }
 

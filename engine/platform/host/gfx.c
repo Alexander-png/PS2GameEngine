@@ -15,6 +15,7 @@ static uint32_t *fb;
 static unsigned up, hits;
 
 int ge_gfx_init(int w, int h) { SW = w; SH = h; fb = calloc((size_t)w * h, 4); VW = w / 2; VH = h / 2; scale = 2; return 0; }
+void ge_gfx_set_tilt(float deg) { (void)deg; }   /* the host renderer draws untilted */
 void ge_gfx_set_view(int vw, int vh) { if (vw > 0) { VW = vw; VH = vh; scale = (float)SW / vw; } }
 void ge_gfx_get_view(int *vw, int *vh) { *vw = VW; *vh = VH; }
 ge_tex_t ge_gfx_tex_create(const ge_texdesc_t *d)

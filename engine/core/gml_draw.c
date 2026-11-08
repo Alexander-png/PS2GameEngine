@@ -65,6 +65,7 @@ static void h_draw_begin(void)
         static int zw, zh; int vw, vh, cw, ch;
         if (gm_camera_view(&vw, &vh) && (vw != zw || vh != zh)) { ge_gfx_get_view(&cw, &ch); if (vw != cw || vh != ch) ge_gfx_set_view(vw, vh); zw = vw; zh = vh; }
     }
+    {   extern float gm_camera_angle(void); ge_gfx_set_tilt(gm_camera_angle()); }
     next_item = 0; dyn_done = 0;
     ge_gfx_frame_begin(room ? ge_room_bg_color(room) : 0x80000000u);
 }

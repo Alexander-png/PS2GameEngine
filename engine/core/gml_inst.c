@@ -683,6 +683,12 @@ int gm_camera_view(int *w, int *h)      /* size of view 0 (zoom effects shrink i
     return *w > 0 && *h > 0;
 }
 
+float gm_camera_angle(void)                /* view_angle of view 0 in degrees (cutscene tilt) */
+{
+    if (!view_any || !gview("view_visible", 0)) return 0;
+    return (float)gview("view_angle", 0);
+}
+
 /* ---- paths: polyline sampled from the path points (smooth = Catmull-Rom), position 0..1 along its length ---- */
 #define PSUB 8
 typedef struct { int n; float *xy; float *cum; } pcache_t;
