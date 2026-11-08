@@ -304,7 +304,7 @@ static int take_rel(void) { int r = act_rel; act_rel = 0; return r; }
 GMB(action_move_to) { (void)other; int r = take_rel(); self->x = r ? self->x + A_REAL(0) : A_REAL(0); self->y = r ? self->y + A_REAL(1) : A_REAL(1); return GM_UNDEF_V; }
 GMB(action_kill_object) { (void)other; (void)argc; (void)argv; gm_instance_destroy(self); return GM_UNDEF_V; }
 GMB(action_set_alarm) { (void)other; int r = take_rel(), a = A_INT(1); if (a >= 0 && a < GM_MAX_ALARMS) self->alarm[a] = (int)(r && self->alarm[a] > 0 ? self->alarm[a] + A_REAL(0) : A_REAL(0)); return GM_UNDEF_V; }
-static void polar(gm_inst *i, gm_real_t sp, gm_real_t dir) { i->direction = dir; i->hspeed = sp * cos(dir * PI / 180.0); i->vspeed = -sp * sin(dir * PI / 180.0); }
+static void polar(gm_inst *i, gm_real_t sp, gm_real_t dir) { gm_set_polar(i, sp, dir); }
 GMB(action_set_motion) { (void)other; int r = take_rel(); gm_real_t sp = A_REAL(1), dir = A_REAL(0); (void)r; polar(self, sp, dir); return GM_UNDEF_V; }
 GMB(action_set_hspeed) { (void)other; int r = take_rel(); self->hspeed = r ? self->hspeed + A_REAL(0) : A_REAL(0); return GM_UNDEF_V; }
 GMB(action_set_gravity) { (void)other; int r = take_rel(); self->gravity_dir = r ? self->gravity_dir + A_REAL(0) : A_REAL(0); self->gravity = r ? self->gravity + A_REAL(1) : A_REAL(1); return GM_UNDEF_V; }

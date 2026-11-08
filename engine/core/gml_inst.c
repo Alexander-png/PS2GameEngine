@@ -106,16 +106,23 @@ static short *bioff;
 static int vid_alarm = -1;
 static unsigned char *isglob;      /* builtin variables that live in the global store whichever instance reads them */
 
-static gm_real_t speed_of(const gm_inst *i) { return sqrt(i->hspeed * i->hspeed + i->vspeed * i->vspeed); }
+static gm_real_t speed_of(const gm_inst *i)
+{
+    if (i->hspeed == i->sp_h && i->vspeed == i->sp_v) return i->speed_set;
+    return sqrt(i->hspeed * i->hspeed + i->vspeed * i->vspeed);
+}
 static void set_polar(gm_inst *i, gm_real_t sp, gm_real_t dir)
 {
     gm_real_t r = dir * 3.14159265358979323846 / 180.0;
     i->direction = dir;
     i->hspeed = sp * cos(r);
     i->vspeed = -sp * sin(r);
+    i->speed_set = sp; i->sp_h = i->hspeed; i->sp_v = i->vspeed;
 }
+void gm_set_polar(gm_inst *i, gm_real_t sp, gm_real_t dir) { set_polar(i, sp, dir); }
 static gm_real_t dir_of(const gm_inst *i)
 {
+    if (i->hspeed == i->sp_h && i->vspeed == i->sp_v) return i->direction;     /* untouched since set_polar: the stored direction is exact (and right for a negative speed) */
     if (i->hspeed == 0 && i->vspeed == 0) return i->direction;
     gm_real_t d = atan2(-i->vspeed, i->hspeed) * 180.0 / 3.14159265358979323846;
     return d < 0 ? d + 360 : d;

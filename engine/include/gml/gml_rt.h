@@ -61,6 +61,7 @@ struct gm_inst {
     uint8_t dead, visible, solid, persistent, created, anim_end;
     int sprite, mask, depth;
     gm_real_t x, y, xstart, ystart, xprev, yprev, hspeed, vspeed, direction, friction, gravity, gravity_dir;
+    gm_real_t speed_set, sp_h, sp_v;   /* the speed last assigned and the hspeed/vspeed it produced: speed reads back exactly (and keeps its sign) until the components are touched */
     gm_real_t image_index, image_speed, image_xscale, image_yscale, image_angle, image_alpha;
     int image_blend;
     int alarm[GM_MAX_ALARMS];
@@ -93,6 +94,7 @@ gm_inst  *gm_instance_by_id(int id);
 int       gm_obj_isa(int obj, int target);               /* obj == target or a descendant */
 int       gm_instance_count(int obj);                    /* live instances of obj (and children); obj < 0 = all */
 gm_inst  *gm_instance_nth(int obj, int n);
+void      gm_set_polar(gm_inst *i, gm_real_t speed, gm_real_t dir);   /* speed + direction -> hspeed/vspeed */
 int       gm_find_object(const char *name);
 void      gm_run_event(gm_inst *i, int type, int sub);   /* own event or inherited */
 void      gm_run_event_for(gm_inst *i, int obj, int type, int sub, gm_inst *other);   /* handler defined in object `obj`, run for instance i */
