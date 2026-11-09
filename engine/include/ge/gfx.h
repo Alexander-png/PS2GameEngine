@@ -38,6 +38,10 @@ void     ge_gfx_draw_xf(ge_tex_t t, int sx, int sy, int w, int h, float ax, floa
                         float scx, float scy, float rot_deg, uint32_t color);
 /* untextured polygon in game px: fan = 0 triangle strip (a quad is 0,1,2,3 in Z order), 1 triangle fan; n <= 64; color = ABGR (alpha in the top byte) */
 void     ge_gfx_flat(int fan, const float *x, const float *y, int n, uint32_t color);
+/* screen capture (GM sprite_create_from_screen): copies the region (x,y,*w,*h) of the last finished frame, in screen pixels, into a small
+ * texture drawable with ge_gfx_draw_xf (sx=sy=0, w, h). The size is clamped to what fits (64x64) and written back. -1 = no free capture slot. */
+ge_tex_t ge_gfx_capture(int x, int y, int *w, int *h);
+void     ge_gfx_capture_free(ge_tex_t t);
 void     ge_gfx_stats(unsigned *uploads, unsigned *evictions, unsigned *bytes, unsigned *hits);   /* texture residency counters (hits = created textures already cached) */
 void     ge_gfx_frame_end(void);                                  /* submit + wait for the GS/GPU to finish */
 #endif

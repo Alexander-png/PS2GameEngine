@@ -21,7 +21,7 @@
 /* Textures are registered by ge_gfx_tex_create and made resident in VRAM lazily on first draw; when VRAM is full the least
  * recently drawn textures are evicted (pending draws are flushed first, so overwriting is safe). The pixel/CLUT memory
  * passed in must stay valid until ge_gfx_tex_free_all. */
-typedef struct { ge_texdesc_t d; int tbw, tw, th, psm, np; int page, clut, res, refs; unsigned last; } vram_t;
+typedef struct { ge_texdesc_t d; int tbw, tw, th, psm, np; int page, clut, res, refs, cap; unsigned last; } vram_t;
 
 static framebuffer_t fbs[2]; static zbuffer_t zb;
 static int back = 1;          /* index of the buffer being drawn; the other one is on screen (double buffered, flipped at vblank) */
@@ -32,7 +32,9 @@ static vram_t V[MAXTEX]; static int nt;
 #define VPAGES 512
 #define CLUT_PAGES 16
 static unsigned char pused[VPAGES], cused[CLUT_PAGES * 32];
-static int tex_first, clut_first;
+static int tex_first, clut_first, tex_last;
+#define CAP_SLOTS 4                      /* screen captures: 64x64 PSMCT32 = 2 pages each, at the top of VRAM */
+static int cap_used[CAP_SLOTS];
 static unsigned frame_no, st_up, st_ev, st_bytes, st_hit;
 static int cur = -1;
 static packet_t *pk; static qword_t *q;
@@ -56,7 +58,7 @@ void ge_gfx_stats(unsigned *uploads, unsigned *evictions, unsigned *bytes, unsig
 static int find_pages(int n)
 {
     int run = 0;
-    for (int i = tex_first; i < VPAGES; i++) {
+    for (int i = tex_first; i < tex_last; i++) {
         run = pused[i] ? 0 : run + 1;
         if (run == n) return i - n + 1;
     }
@@ -74,6 +76,7 @@ static int find_clut(int n)
 static void evict(int i)
 {
     vram_t *v = &V[i];
+    if (v->cap) return;
     int t4 = v->d.fmt == GE_FMT_I4;
     memset(pused + v->page, 0, v->np);
     memset(cused + (v->clut - clut_first * 32) , 0, t4 ? 1 : 4);
@@ -90,7 +93,7 @@ static int make_resident(int t)
         if (pg >= 0 && cb >= 0) break;
         int lru = -1;        /* victim: unreferenced (cached) textures first, then least recently drawn */
         for (int i = 0; i < nt; i++) {
-            if (!V[i].res) continue;
+            if (!V[i].res || V[i].cap) continue;
             if (lru < 0 || (V[i].refs > 0) < (V[lru].refs > 0) ||
                 ((V[i].refs > 0) == (V[lru].refs > 0) && (int)(V[i].last - V[lru].last) < 0)) lru = i;
         }
@@ -132,7 +135,7 @@ int ge_gfx_init(int w, int h)
     SW = w; SH = h; scale = 2.0f; VWc = w / 2; VHc = h / 2;
     int fbpages = ((SW + 63) / 64) * ((SH + 31) / 32);
     for (int k = 0; k < 2; k++) { fbs[k].width = SW; fbs[k].height = SH; fbs[k].mask = 0; fbs[k].psm = GS_PSM_32; fbs[k].address = k * fbpages * 2048; }
-    clut_first = 2 * fbpages; tex_first = clut_first + CLUT_PAGES;
+    clut_first = 2 * fbpages; tex_first = clut_first + CLUT_PAGES; tex_last = VPAGES - CAP_SLOTS * 2;
     zb.enable = 0; zb.mask = 0; zb.method = 0; zb.zsm = 0; zb.address = 0;
     dma_channel_initialize(DMA_CHANNEL_GIF, NULL, 0);
     dma_channel_fast_waits(DMA_CHANNEL_GIF);
@@ -178,8 +181,55 @@ ge_tex_t ge_gfx_tex_create(const ge_texdesc_t *d)
     v->tbw = (d->stride + 127) & ~127;       /* T4/T8 texture buffer width must be a multiple of 128 px */
     v->tw = ilog2(v->tbw); v->th = ilog2(d->h);
     v->np = (v->tbw / 128) * ((d->h + (t4 ? 127 : 63)) / (t4 ? 128 : 64));
-    if (v->np > VPAGES - tex_first) { v->refs = 0; v->d.key = 0; return -1; }
+    if (v->np > tex_last - tex_first) { v->refs = 0; v->d.key = 0; return -1; }
     return slot;
+}
+
+ge_tex_t ge_gfx_capture(int x, int y, int *w, int *h)
+{
+    if (x < 0) { *w += x; x = 0; }
+    if (y < 0) { *h += y; y = 0; }
+    if (*w > 64) *w = 64;
+    if (*h > 64) *h = 64;
+    if (x + *w > SW) *w = SW - x;
+    if (y + *h > SH) *h = SH - y;
+    if (*w <= 0 || *h <= 0) return -1;
+    int s = 0;
+    while (s < CAP_SLOTS && cap_used[s]) s++;
+    if (s == CAP_SLOTS) return -1;
+    int slot = -1;
+    if (nt < MAXTEX) slot = nt++;
+    else {
+        for (int i = 0; i < nt; i++) if (!V[i].refs && (slot < 0 || (int)(V[i].last - V[slot].last) < 0)) slot = i;
+        if (slot < 0) return -1;
+        if (V[slot].res) evict(slot);
+    }
+    vram_t *v = &V[slot];
+    memset(v, 0, sizeof *v);
+    v->d.key = 0xFFFF0000u + s; v->d.w = *w; v->d.h = *h; v->d.stride = 64;
+    v->cap = 1; v->res = 1; v->refs = 1; v->psm = GS_PSM_32; v->tbw = 64; v->tw = 6; v->th = 6; v->np = 2;
+    v->page = tex_last + s * 2; v->last = frame_no;
+    cap_used[s] = 1;
+    flush_mid();
+    qword_t *p = pk->data;
+    PACK_GIFTAG(p, GIF_SET_TAG(5, 1, 0, 0, GIF_FLG_PACKED, 1), GIF_REG_AD); p++;
+    /* local -> local copy from the finished frame (the buffer that is on screen) */
+    PACK_GIFTAG(p, GS_SET_BITBLTBUF(fbs[back ^ 1].address >> 6, SW >> 6, GS_PSM_32, v->page * 32, 1, GS_PSM_32), GS_REG_BITBLTBUF); p++;
+    PACK_GIFTAG(p, GS_SET_TRXPOS(x, y, 0, 0, 0), GS_REG_TRXPOS); p++;
+    PACK_GIFTAG(p, GS_SET_TRXREG(*w, *h), GS_REG_TRXREG); p++;
+    PACK_GIFTAG(p, GS_SET_TRXDIR(2), GS_REG_TRXDIR); p++;
+    PACK_GIFTAG(p, 0, GS_REG_TEXFLUSH); p++;
+    send_normal(pk->data, p);
+    cur = -1;
+    return slot;
+}
+void ge_gfx_capture_free(ge_tex_t t)
+{
+    if (t < 0 || t >= nt || !V[t].cap) return;
+    int s = (int)(V[t].d.key - 0xFFFF0000u);
+    if (s >= 0 && s < CAP_SLOTS) cap_used[s] = 0;
+    if (cur == t) cur = -1;
+    V[t].cap = 0; V[t].res = 0; V[t].refs = 0; V[t].d.key = 0;
 }
 
 void ge_gfx_tex_prefetch(ge_tex_t t)
@@ -251,7 +301,9 @@ void ge_gfx_draw_xf(ge_tex_t t, int sx, int sy, int w, int h, float ax, float ay
     }
     if (newtex) {
         cur = t; vram_t *v = &V[t];
-        PACK_GIFTAG(q, GS_SET_TEX0(v->page * 32, v->tbw >> 6, v->psm, v->tw, v->th, 1, 0, v->clut, cpsm, 0, 0, 1), GS_REG_TEX0_1); q++;
+        if (v->cap) { PACK_GIFTAG(q, GS_SET_TEX0(v->page * 32, 1, GS_PSM_32, 6, 6, 0, 0, 0, 0, 0, 0, 0), GS_REG_TEX0_1); }
+        else { PACK_GIFTAG(q, GS_SET_TEX0(v->page * 32, v->tbw >> 6, v->psm, v->tw, v->th, 1, 0, v->clut, cpsm, 0, 0, 1), GS_REG_TEX0_1); }
+        q++;
     }
     if (newcol) {
         cur_color = color; col_ok = 1;

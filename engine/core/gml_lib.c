@@ -331,9 +331,7 @@ GMB(move_towards_point) { (void)other; gm_real_t dx = A_REAL(0) - self->x, dy = 
 GMB(move_snap) { (void)other; gm_real_t h = A_REAL(0), v = A_REAL(1); if (h > 0) self->x = floor(self->x / h + 0.5) * h; if (v > 0) self->y = floor(self->y / v + 0.5) * v; return GM_UNDEF_V; }
 GMB(path_start) { (void)other; (void)argc; gm_path_start(self, A_INT(0), A_REAL(1), A_INT(2), A_INT(3)); return GM_UNDEF_V; }
 GMB(path_end) { (void)other; (void)argc; (void)argv; gm_path_stop(self); return GM_UNDEF_V; }
-NOPF(path_dummy_) NOPF(sprite_delete) NOPF(sprite_replace)
-/* screen captures are not implemented: answer "no sprite" (-1) so nothing is drawn; undefined would read as sprite 0 (the title image) */
-GMB(sprite_create_from_surface) { (void)self; (void)other; (void)argc; (void)argv; return gm_real(-1); }
+NOPF(path_dummy_) NOPF(sprite_replace)
 GMB(background_add) { (void)self; (void)other; (void)argc; (void)argv; return gm_real(-1); }
 GMB(sprite_get_name) { (void)self; (void)other; (void)argc; (void)argv; return gm_str_make("", 0); }
 GMB(sprite_collision_mask) { (void)self; (void)other; (void)argc; (void)argv; return GM_UNDEF_V; }
@@ -346,13 +344,14 @@ GMB(joystick_direction) { (void)self; (void)other; (void)argc; (void)argv; retur
 GMB(joystick_pov) { (void)self; (void)other; (void)argc; (void)argv; return gm_real(-1); }
 
 /* ---------------- sprites / collisions ---------------- */
+extern int gm_dynspr(int spr, int *w, int *h);
 static int spr(int k) { return k >= 0 && k < gm_nsprites; }
-GMB(sprite_get_width) { (void)self; (void)other; int s = A_INT(0); return gm_real(spr(s) ? gm_sprites[s].w : 0); }
-GMB(sprite_get_height) { (void)self; (void)other; int s = A_INT(0); return gm_real(spr(s) ? gm_sprites[s].h : 0); }
+GMB(sprite_get_width) { (void)self; (void)other; int s = A_INT(0), dw = 0; if (gm_dynspr(s, &dw, NULL)) return gm_real(dw); return gm_real(spr(s) ? gm_sprites[s].w : 0); }
+GMB(sprite_get_height) { (void)self; (void)other; int s = A_INT(0), dh = 0; if (gm_dynspr(s, NULL, &dh)) return gm_real(dh); return gm_real(spr(s) ? gm_sprites[s].h : 0); }
 GMB(sprite_get_xoffset) { (void)self; (void)other; int s = A_INT(0); return gm_real(spr(s) ? gm_sprites[s].ox : 0); }
 GMB(sprite_get_yoffset) { (void)self; (void)other; int s = A_INT(0); return gm_real(spr(s) ? gm_sprites[s].oy : 0); }
 GMB(sprite_get_number) { (void)self; (void)other; int s = A_INT(0); return gm_real(spr(s) ? gm_sprites[s].nframes : 0); }
-GMB(sprite_exists) { (void)self; (void)other; return gm_real(spr(A_INT(0))); }
+GMB(sprite_exists) { (void)self; (void)other; return gm_real(spr(A_INT(0)) || gm_dynspr(A_INT(0), NULL, NULL)); }
 static gm_val idof(gm_inst *i) { return gm_real(i ? i->id : -4); }
 GMB(collision_point)
 { (void)other; gm_real_t x = A_REAL(0), y = A_REAL(1); return idof(gm_collide_rect(self, x, y, x, y, A_INT(2), A_INT(4))); }

@@ -7,7 +7,7 @@
 #include "ge/gfx.h"
 
 #define MAXTEX 4096
-typedef struct { ge_texdesc_t d; uint32_t *rgba; int w, h; uint32_t key; int used; } tex_t;
+typedef struct { ge_texdesc_t d; uint32_t *rgba; int w, h; uint32_t key; int used; int cap; } tex_t;
 static tex_t T[MAXTEX]; static int nt;
 static int SW, SH, VW = 320, VH = 240;
 static float scale = 2.0f;
@@ -26,6 +26,26 @@ ge_tex_t ge_gfx_tex_create(const ge_texdesc_t *d)
     return nt++;
 }
 void ge_gfx_tex_release(ge_tex_t t) { (void)t; }
+ge_tex_t ge_gfx_capture(int x, int y, int *w, int *h)
+{
+    if (x < 0) { *w += x; x = 0; }
+    if (y < 0) { *h += y; y = 0; }
+    if (*w > 64) *w = 64;
+    if (*h > 64) *h = 64;
+    if (x + *w > SW) *w = SW - x;
+    if (y + *h > SH) *h = SH - y;
+    if (*w <= 0 || *h <= 0) return -1;
+    int s = -1;
+    for (int i = 0; i < nt; i++) if (T[i].cap == 2) { s = i; break; }
+    if (s < 0) { if (nt >= MAXTEX) return -1; s = nt++; }
+    free(T[s].rgba);
+    memset(&T[s], 0, sizeof T[s]);
+    T[s].w = *w; T[s].h = *h; T[s].d.w = *w; T[s].d.h = *h; T[s].cap = 1;
+    T[s].rgba = malloc((size_t)*w * *h * 4);
+    for (int j = 0; j < *h; j++) for (int i = 0; i < *w; i++) T[s].rgba[j * *w + i] = fb[(y + j) * SW + x + i] | 0xFF000000u;
+    return s;
+}
+void ge_gfx_capture_free(ge_tex_t t) { if (t >= 0 && t < nt && T[t].cap == 1) { free(T[t].rgba); T[t].rgba = NULL; T[t].cap = 2; } }
 static int decode(tex_t *t)
 {
     const void *clut, *pix;

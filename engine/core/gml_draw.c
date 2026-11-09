@@ -140,9 +140,37 @@ static const ge_frame_t *frame_of(int spr, gm_real_t sub, const ge_sprite_t **sp
     const ge_frame_t *fr = ge_pack_frame(pack, *sp, f);
     return (fr->asset == NONE || !fr->w) ? NULL : fr;
 }
+/* dynamic sprites: screen captures (sprite_create_from_screen/surface) live in a few small GPU capture slots; ids start at DYN_BASE */
+#define DYN_BASE 30000
+#define DYN_N 4
+static struct { ge_tex_t t; int w, h; unsigned age; } dyn[DYN_N];
+static unsigned dyn_tick;
+int gm_dynspr(int spr, int *w, int *h)
+{
+    int k = spr - DYN_BASE;
+    if (k < 0 || k >= DYN_N || !dyn[k].w) return 0;
+    if (w) *w = dyn[k].w;
+    if (h) *h = dyn[k].h;
+    return 1;
+}
+static void dyn_free(int k) { if (dyn[k].w) { ge_gfx_capture_free(dyn[k].t); dyn[k].w = dyn[k].h = 0; } }
+GMB(sprite_create_from_surface)
+{
+    (void)other; (void)self;
+    int k = -1;
+    for (int i = 0; i < DYN_N; i++) if (!dyn[i].w) { k = i; break; }
+    if (k < 0) { k = 0; for (int i = 1; i < DYN_N; i++) if ((int)(dyn[i].age - dyn[k].age) < 0) k = i; dyn_free(k); }   /* all in use (a script that never deletes): recycle the oldest */
+    int w = argc > 3 ? A_INT(3) : 0, h = argc > 4 ? A_INT(4) : 0;
+    ge_tex_t t = ge_gfx_capture(A_INT(1), A_INT(2), &w, &h);
+    if (t < 0) return gm_real(-1);
+    dyn[k].t = t; dyn[k].w = w; dyn[k].h = h; dyn[k].age = ++dyn_tick;
+    return gm_real(DYN_BASE + k);
+}
+GMB(sprite_delete) { (void)self; (void)other; (void)argc; int k = A_INT(0) - DYN_BASE; if (k >= 0 && k < DYN_N) dyn_free(k); return GM_UNDEF_V; }
 static void spr_draw(int spr, gm_real_t sub, float x, float y, float xs, float ys, float rot, uint32_t col)
 {
     const ge_sprite_t *sp;
+    if (spr >= DYN_BASE) { int k = spr - DYN_BASE; if (k < DYN_N && dyn[k].w) ge_gfx_draw_xf(dyn[k].t, 0, 0, dyn[k].w, dyn[k].h, x - cam_x, y - cam_y, 0, 0, xs, ys, rot, col); return; }
     const ge_frame_t *fr = frame_of(spr, sub, &sp);
     if (!fr) return;
     ge_tex_t t = ge_pack_tex(pack, fr->asset);
